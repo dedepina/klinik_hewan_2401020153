@@ -243,10 +243,10 @@ Route::put('/pasien-hewan/{id}', function (Request $request, int $id) use ($atur
 
         $ubah = $pdo->prepare(
             'UPDATE pasien_hewan
-             SET kode_pasien = :kode_pasien, nama_hewan = :nama_hewan,
-                 nomor_rekam = :nomor_rekam, usia_tahun = :usia_tahun,
-                 jenis_hewan_id = :jenis_hewan_id
-             WHERE id = :id'
+            SET kode_pasien = :kode_pasien, nama_hewan = :nama_hewan,
+                nomor_rekam = :nomor_rekam, usia_tahun = :usia_tahun,
+                jenis_hewan_id = :jenis_hewan_id, updated_at = NOW()
+            WHERE id = :id'
         );
         $ubah->execute(array_merge($data, ['id' => $id]));
 
