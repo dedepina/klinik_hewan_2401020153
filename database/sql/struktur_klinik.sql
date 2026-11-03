@@ -1,0 +1,29 @@
+CREATE DATABASE IF NOT EXISTS klinik_hewan_2401020153
+    CHARACTER SET utf8mb4
+    COLLATE utf8mb4_unicode_ci;
+
+USE klinik_hewan_2401020153;
+
+CREATE TABLE jenis_hewan (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    nama_jenis VARCHAR(100) NOT NULL UNIQUE
+) ENGINE=InnoDB;
+
+CREATE TABLE pasien_hewan (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    kode_pasien CHAR(10) NOT NULL UNIQUE,
+    nama_hewan VARCHAR(100) NOT NULL,
+    nomor_rekam VARCHAR(30) NOT NULL UNIQUE,
+    usia_tahun TINYINT UNSIGNED NOT NULL,
+    jenis_hewan_id BIGINT UNSIGNED NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_pasien_jenis_hewan
+        FOREIGN KEY (jenis_hewan_id)
+        REFERENCES jenis_hewan(id)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT,
+    CONSTRAINT chk_usia_tahun
+        CHECK (usia_tahun BETWEEN 0 AND 30)
+) ENGINE=InnoDB;
