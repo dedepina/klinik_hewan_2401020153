@@ -143,10 +143,11 @@ Route::post('/pasien-hewan', function (Request $request) use ($aturanPasien, $pe
 
         $simpan = $pdo->prepare(
             'INSERT INTO pasien_hewan
-             (kode_pasien, nama_hewan, nomor_rekam, usia_tahun, jenis_hewan_id)
-             VALUES (:kode_pasien, :nama_hewan, :nomor_rekam,
-                     :usia_tahun, :jenis_hewan_id)'
-        );
+            (kode_pasien, nama_hewan, nomor_rekam, usia_tahun, jenis_hewan_id,
+                created_at, updated_at)
+            VALUES (:kode_pasien, :nama_hewan, :nomor_rekam,
+             :usia_tahun, :jenis_hewan_id, NOW(), NOW())'
+);
         $simpan->execute($data);
 
         return redirect()->route('pasien.index')->with(
@@ -162,3 +163,130 @@ Route::post('/pasien-hewan', function (Request $request) use ($aturanPasien, $pe
         );
     }
 })->name('pasien.store');
+
+Route::get('/pasien-hewan/{id}/edit', function (int $id) {
+    try {
+        $pdo = DB::connection()->getPdo();
+        $ambilPasien = $pdo->prepare(
+            'SELECT id, kode_pasien, nama_hewan, nomor_rekam,
+                    usia_tahun, jenis_hewan_id
+             FROM pasien_hewan WHERE id = :id'
+        );
+        $ambilPasien->execute(['id' => $id]);
+        $pasien = $ambilPasien->fetch(\PDO::FETCH_ASSOC);
+
+        if (!$pasien) {
+            return redirect()->route('pasien.index')->with(
+                'gagal',
+                'Data pasien tidak ditemukan.'
+            );
+        }
+
+        $ambilJenis = $pdo->prepare(
+            'SELECT id, nama_jenis FROM jenis_hewan ORDER BY nama_jenis'
+        );
+        $ambilJenis->execute();
+        $daftarJenisHewan = $ambilJenis->fetchAll(\PDO::FETCH_ASSOC);
+
+        return view('pasien-edit', compact('pasien', 'daftarJenisHewan'));
+    } catch (\Throwable $error) {
+        report($error);
+
+        return redirect()->route('pasien.index')->with(
+            'gagal',
+            'Data gagal dibuka untuk diubah.'
+        );
+    }
+})->name('pasien.edit');
+
+Route::put('/pasien-hewan/{id}', function (Request $request, int $id) use ($aturanPasien, $pesanPasien) {
+    $request->merge([
+        'kode_pasien' => strip_tags(trim((string) $request->input('kode_pasien'))),
+        'nama_hewan' => strip_tags(trim((string) $request->input('nama_hewan'))),
+        'nomor_rekam' => strip_tags(trim((string) $request->input('nomor_rekam'))),
+    ]);
+
+    $data = $request->validate($aturanPasien, $pesanPasien);
+
+    try {
+        $pdo = DB::connection()->getPdo();
+
+        $cekJenis = $pdo->prepare(
+            'SELECT COUNT(*) FROM jenis_hewan WHERE id = :id'
+        );
+        $cekJenis->execute(['id' => $data['jenis_hewan_id']]);
+
+        if ((int) $cekJenis->fetchColumn() === 0) {
+            return back()->withInput()->with(
+                'gagal',
+                'Jenis hewan tidak tersedia.'
+            );
+        }
+
+        $cek = $pdo->prepare(
+            'SELECT COUNT(*) FROM pasien_hewan
+             WHERE (kode_pasien = :kode_pasien OR nomor_rekam = :nomor_rekam)
+               AND id <> :id'
+        );
+        $cek->execute([
+            'kode_pasien' => $data['kode_pasien'],
+            'nomor_rekam' => $data['nomor_rekam'],
+            'id' => $id,
+        ]);
+
+        if ((int) $cek->fetchColumn() > 0) {
+            return back()->withInput()->with(
+                'gagal',
+                'Kode pasien atau nomor rekam sudah digunakan pasien lain.'
+            );
+        }
+
+        $ubah = $pdo->prepare(
+            'UPDATE pasien_hewan
+             SET kode_pasien = :kode_pasien, nama_hewan = :nama_hewan,
+                 nomor_rekam = :nomor_rekam, usia_tahun = :usia_tahun,
+                 jenis_hewan_id = :jenis_hewan_id
+             WHERE id = :id'
+        );
+        $ubah->execute(array_merge($data, ['id' => $id]));
+
+        return redirect()->route('pasien.index')->with(
+            'berhasil',
+            'Data pasien berhasil diperbarui.'
+        );
+    } catch (\Throwable $error) {
+        report($error);
+
+        return back()->withInput()->with(
+            'gagal',
+            'Data gagal diperbarui. Periksa koneksi dan data.'
+        );
+    }
+})->name('pasien.update');
+
+Route::delete('/pasien-hewan/{id}', function (int $id) {
+    try {
+        $pdo = DB::connection()->getPdo();
+        $hapus = $pdo->prepare('DELETE FROM pasien_hewan WHERE id = :id');
+        $hapus->execute(['id' => $id]);
+
+        if ($hapus->rowCount() === 0) {
+            return redirect()->route('pasien.index')->with(
+                'gagal',
+                'Data pasien tidak ditemukan.'
+            );
+        }
+
+        return redirect()->route('pasien.index')->with(
+            'berhasil',
+            'Data pasien berhasil dihapus.'
+        );
+    } catch (\Throwable $error) {
+        report($error);
+
+        return redirect()->route('pasien.index')->with(
+            'gagal',
+            'Data gagal dihapus. Periksa relasi atau koneksi.'
+        );
+    }
+})->name('pasien.destroy');
